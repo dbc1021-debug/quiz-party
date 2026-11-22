@@ -1,12 +1,11 @@
-// ⚠️ 請把這裡換成你自己 Firebase 專案的設定（Firebase 主控台 → 專案設定 → 一般 → 你的應用程式 → SDK 設定）
 export const firebaseConfig = {
-  apiKey: "請填入",
-  authDomain: "你的專案.firebaseapp.com",
-  projectId: "你的專案",
-  storageBucket: "你的專案.appspot.com",
-  messagingSenderId: "請填入",
-  appId: "請填入"
+  apiKey: "AIzaSyBRSDIBvVNh9WPocS6IsPe4QDhkF3gYXN8",
+  authDomain: "quiz-party-f8cc1.firebaseapp.com",
+  projectId: "quiz-party-f8cc1",
+  storageBucket: "quiz-party-f8cc1.firebasestorage.app",
+  messagingSenderId: "43654495469",
+  appId: "1:43654495469:web:0c9e5e849646ff3a57e0e4"
 };
 
-// 可以登入後台的 Google 帳號（要和 firestore.rules 裡寫的一樣）
-export const ADMIN_EMAILS = ["your.name@gmail.com"];
+// 可以登入後台的 Google 帳號
+export const ADMIN_EMAILS = ["dbc1021@gmail.com"];
