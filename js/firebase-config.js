@@ -8,4 +8,4 @@ export const firebaseConfig = {
 };
 
 // 可以登入後台的 Google 帳號
-export const ADMIN_EMAILS = ["dbc1021@gmail.com"];
+export const ADMIN_EMAILS = ["dbc1021@gmail.com", "hover666@hoover666.com"];
