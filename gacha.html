@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="扭蛋機">
+<title>可愛扭蛋機</title>
+<style>
+:root {
+  --bg: #ffe3ec; --bg2: #ffc9dc; --primary: #ff5c8d; --primary2: #ff8fb1; --accent: #ffc94d; --text: #5a2a3c; --card: #fff;
+  --shadow: 0 6px 0 rgba(0,0,0,.08), 0 12px 30px rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font-family: "Zen Maru Gothic", "jf open 粉圓", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  color: var(--text); user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  background:
+    radial-gradient(circle, rgba(255,255,255,.6) 0 5px, transparent 6px) 0 0 / 46px 46px,
+    radial-gradient(circle, rgba(255,255,255,.35) 0 3px, transparent 4px) 23px 23px / 46px 46px,
+    linear-gradient(160deg, var(--bg), var(--bg2));
+}
+button { font: inherit; cursor: pointer; }
+.hidden { display: none !important; }
+
+/* ---------- 主畫面 ---------- */
+.stage { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+.title { font-size: clamp(1.8rem, 5vh, 3rem); font-weight: 900; color: var(--primary); text-shadow: 0 4px 0 #fff, 0 6px 12px rgba(0,0,0,.08); letter-spacing: .05em; text-align: center; }
+.machine-wrap { position: relative; height: min(62vh, 115vw); aspect-ratio: 300 / 420; }
+.machine-wrap svg { width: 100%; height: 100%; overflow: visible; }
+#dome-balls.shake { animation: shake .12s linear infinite; transform-origin: 150px 120px; }
+@keyframes shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,2px) rotate(-2deg); } 75% { transform: translate(3px,-2px) rotate(2deg); } }
+#knob { transform-origin: 150px 292px; transition: transform 1.3s cubic-bezier(.45,.05,.3,1); cursor: pointer; }
+.spin-btn {
+  border: 0; background: var(--primary); color: #fff; font-weight: 900; font-size: clamp(1.4rem, 4vh, 2.2rem);
+  padding: 2vh 7vh; border-radius: 999px; box-shadow: 0 7px 0 rgba(0,0,0,.18); transition: transform .08s, box-shadow .08s;
+  animation: breathe 2s ease-in-out infinite;
+}
+.spin-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+.spin-btn:disabled { opacity: .55; animation: none; }
+@keyframes breathe { 50% { transform: scale(1.05); } }
+.hint { font-weight: 800; opacity: .7; min-height: 1.4em; text-align: center; }
+
+/* 掉出來的扭蛋 */
+.capsule { position: absolute; width: 22%; aspect-ratio: 1; left: 39%; top: 79%; z-index: 5; cursor: pointer; display: none; }
+.capsule .top, .capsule .bot { position: absolute; left: 0; width: 100%; height: 50%; }
+.capsule .top { top: 0; border-radius: 999px 999px 0 0; background: var(--cap, #ff8fb1); box-shadow: inset -6px 6px 0 rgba(255,255,255,.35); }
+.capsule .bot { bottom: 0; border-radius: 0 0 999px 999px; background: #fff; box-shadow: inset -6px -6px 0 rgba(0,0,0,.06); }
+.capsule::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; background: rgba(0,0,0,.08); }
+.capsule.drop { display: block; animation: drop .9s cubic-bezier(.3,1.6,.5,1) both; }
+.capsule.wiggle { display: block; animation: wiggle 1.2s ease-in-out infinite; }
+.capsule.gold .top { background: linear-gradient(135deg, #ffe680, #f5b800); }
+.capsule.gold { filter: drop-shadow(0 0 14px #ffd54d); }
+@keyframes drop { 0% { transform: translateY(-80%) scale(.3); opacity: 0; } 60% { opacity: 1; } 100% { transform: translateY(0) scale(1); } }
+@keyframes wiggle { 0%,100% { transform: rotate(0) scale(1); } 20% { transform: rotate(-10deg) scale(1.05); } 40% { transform: rotate(10deg) scale(1.05); } 60% { transform: rotate(-6deg); } }
+
+/* 秘密按鈕 */
+#secret { position: fixed; right: 14px; bottom: 12px; width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: var(--primary); opacity: .28; z-index: 20; }
+#secret.armed { opacity: .5; }
+#secret.no { animation: shake .12s 4; }
+#gear { position: fixed; left: 12px; bottom: 12px; width: 44px; height: 44px; border: 0; background: none; font-size: 22px; opacity: .3; z-index: 20; }
+
+/* ---------- 開獎 ---------- */
+.overlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.35); backdrop-filter: blur(3px); }
+.rays { position: absolute; width: 160vmax; height: 160vmax; background: repeating-conic-gradient(rgba(255,214,77,.55) 0 10deg, transparent 10deg 20deg); animation: spin 12s linear infinite; border-radius: 50%;
+  mask-image: radial-gradient(circle, #000 20%, transparent 60%); -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 60%); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.prize-card { position: relative; background: var(--card); border-radius: 32px; padding: 4vh 6vh; text-align: center; box-shadow: var(--shadow); border: 5px solid #fff;
+  animation: pop .6s cubic-bezier(.2,1.5,.4,1) both; min-width: min(80vw, 380px); max-width: 90vw; }
+.prize-card.grand { border-color: #ffd54d; box-shadow: 0 0 0 8px rgba(255,213,77,.5), var(--shadow); }
+.prize-card .label { font-size: clamp(1.1rem, 3vh, 1.6rem); font-weight: 900; color: var(--primary); }
+.prize-card.grand .label { font-size: clamp(1.8rem, 5vh, 3rem); color: #f59f00; text-shadow: 0 3px 0 #fff3c4; animation: breathe 1s infinite; }
+.prize-icon { font-size: clamp(5rem, 18vh, 10rem); line-height: 1.15; margin: 1vh 0; }
+.prize-icon img { width: clamp(120px, 26vh, 240px); height: clamp(120px, 26vh, 240px); object-fit: contain; }
+.prize-name { font-size: clamp(1.6rem, 5vh, 2.8rem); font-weight: 900; word-break: break-word; }
+.prize-card .spin-btn { margin-top: 3vh; font-size: clamp(1.1rem, 3vh, 1.6rem); padding: 1.6vh 5vh; animation: none; }
+@keyframes pop { 0% { transform: scale(.3) rotate(-8deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 40; }
+.confetti i { position: absolute; top: -20px; width: 12px; height: 16px; border-radius: 3px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+
+/* ---------- 設定 ---------- */
+.panel { position: fixed; inset: 0; z-index: 50; background: rgba(90,42,60,.25); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sheet { background: #fff; border-radius: 26px; width: min(900px, 100%); max-height: 100%; display: flex; flex-direction: column; box-shadow: var(--shadow); overflow: hidden; }
+.sheet header { display: flex; align-items: center; gap: 8px; padding: 16px 18px 10px; flex-wrap: wrap; }
+.sheet header h2 { margin: 0; margin-right: auto; color: var(--primary); }
+.sheet .body { overflow: auto; padding: 4px 18px 18px; -webkit-overflow-scrolling: touch; user-select: text; -webkit-user-select: text; }
+.tabs { display: flex; gap: 6px; padding: 0 18px 8px; flex-wrap: wrap; }
+.btn { border: 0; background: var(--primary); color: #fff; font-weight: 800; padding: 10px 18px; border-radius: 999px; box-shadow: 0 4px 0 rgba(0,0,0,.15); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.15); }
+.btn.ghost { background: #fff0f5; color: var(--text); }
+.btn.danger { background: #ff6b6b; }
+.btn.small { padding: 6px 12px; font-size: .9rem; }
+.tabs .btn { background: #fff0f5; color: var(--text); }
+.tabs .btn.on { background: var(--primary); color: #fff; }
+input[type=text], input[type=number], input[type=password] { font: inherit; color: var(--text); border: 3px solid #f3e3ea; border-radius: 12px; padding: 8px 10px; outline: none; background: #fff; min-width: 0; }
+input:focus { border-color: var(--primary); }
+.prow { display: grid; grid-template-columns: 64px 1fr 92px 92px auto 40px; gap: 8px; align-items: center; padding: 10px; border-radius: 16px; background: #fff8fb; margin-bottom: 8px; }
+.prow.grand { background: #fff8e1; outline: 2px solid #ffe08a; }
+.icon-box { width: 64px; height: 64px; border-radius: 14px; background: #fff; border: 3px dashed #f3d3df; display: grid; place-items: center; font-size: 2rem; position: relative; overflow: hidden; }
+.icon-box img { width: 100%; height: 100%; object-fit: contain; }
+.icon-box input[type=text] { position: absolute; inset: 0; border: 0; background: transparent; text-align: center; font-size: 2rem; padding: 0; }
+.prow .small-lbl { font-size: .75rem; opacity: .65; display: block; margin-bottom: 2px; }
+.prow .flags { display: flex; flex-direction: column; gap: 4px; font-size: .88rem; }
+.prow .flags label { white-space: nowrap; }
+.prow .pct { font-size: .78rem; opacity: .7; }
+.muted { opacity: .7; font-size: .9rem; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 8px 6px; border-bottom: 2px dashed #f6e6ee; text-align: left; }
+.themes { display: flex; gap: 10px; flex-wrap: wrap; }
+.themes button { border: 4px solid transparent; border-radius: 16px; padding: 10px 14px; font-weight: 800; color: #fff; }
+.themes button.on { border-color: var(--text); }
+.pinbox { background: #fff; border-radius: 24px; padding: 24px; width: min(340px, 100%); text-align: center; box-shadow: var(--shadow); }
+.pinbox input { width: 100%; font-size: 1.6rem; text-align: center; letter-spacing: .4em; margin: 12px 0; }
+.toast { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); background: #3a2a3a; color: #fff; padding: 10px 18px; border-radius: 999px; font-weight: 700; z-index: 99; }
+@media (max-width: 640px) {
+  .prow { grid-template-columns: 56px 1fr 1fr; }
+  .prow .flags { grid-column: 1 / 3; flex-direction: row; flex-wrap: wrap; }
+  .icon-box { width: 56px; height: 56px; }
+}
+@media (orientation: landscape) and (max-height: 600px) { .machine-wrap { height: 58vh; } }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="title" id="title">扭蛋機</div>
+  <div class="machine-wrap" id="machine">
+    <svg viewBox="0 0 300 420" aria-label="扭蛋機">
+      <defs>
+        <radialGradient id="glass" cx="35%" cy="30%" r="75%">
+          <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+          <stop offset=".55" stop-color="#eaf6ff" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#cfe8ff" stop-opacity=".75"/>
+        </radialGradient>
+        <clipPath id="domeClip"><circle cx="150" cy="122" r="104"/></clipPath>
+      </defs>
+      <!-- 底座 -->
+      <ellipse cx="150" cy="408" rx="120" ry="10" fill="#000" opacity=".08"/>
+      <rect x="44" y="380" width="212" height="26" rx="13" fill="var(--text)" opacity=".85"/>
+      <!-- 機身 -->
+      <path d="M58 214 h184 a14 14 0 0 1 14 14 v150 a8 8 0 0 1 -8 8 h-196 a8 8 0 0 1 -8 -8 v-150 a14 14 0 0 1 14 -14z" fill="var(--primary)"/>
+      <path d="M58 214 h40 v172 h-46 a8 8 0 0 1 -8 -8 v-150 a14 14 0 0 1 14 -14z" fill="#fff" opacity=".18"/>
+      <!-- 標籤 -->
+      <rect x="92" y="226" width="116" height="30" rx="15" fill="#fff"/>
+      <text x="150" y="247" text-anchor="middle" font-size="16" font-weight="900" fill="var(--primary)" id="svg-label">轉轉看 ♥</text>
+      <!-- 旋鈕 -->
+      <circle cx="150" cy="292" r="30" fill="#fff"/>
+      <g id="knob">
+        <circle cx="150" cy="292" r="24" fill="var(--accent)"/>
+        <rect x="143" y="266" width="14" height="52" rx="7" fill="#fff"/>
+        <circle cx="150" cy="292" r="6" fill="var(--accent)"/>
+      </g>
+      <!-- 出口 -->
+      <rect x="104" y="334" width="92" height="40" rx="14" fill="var(--text)" opacity=".85"/>
+      <rect x="110" y="340" width="80" height="22" rx="10" fill="#000" opacity=".35"/>
+      <!-- 頂蓋 -->
+      <rect x="100" y="8" width="100" height="18" rx="9" fill="var(--primary)"/>
+      <!-- 玻璃罩 -->
+      <circle cx="150" cy="122" r="108" fill="#fff" opacity=".6"/>
+      <g clip-path="url(#domeClip)"><g id="dome-balls"></g></g>
+      <circle cx="150" cy="122" r="104" fill="url(#glass)" stroke="#fff" stroke-width="6"/>
+      <path d="M86 70 q24 -34 66 -40" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".8"/>
+      <circle cx="80" cy="96" r="6" fill="#fff" opacity=".85"/>
+      <!-- 罩子底座 -->
+      <rect x="44" y="200" width="212" height="22" rx="11" fill="var(--primary)"/>
+      <rect x="44" y="200" width="212" height="8" rx="4" fill="#fff" opacity=".25"/>
+    </svg>
+    <div class="capsule" id="capsule"><div class="top"></div><div class="bot"></div></div>
+  </div>
+  <button class="spin-btn" id="spin">轉一下！</button>
+  <div class="hint" id="hint"></div>
+</div>
+
+<button id="gear" aria-label="設定">⚙️</button>
+<button id="secret" aria-label="裝飾">♡</button>
+
+<!-- 開獎 -->
+<div class="overlay hidden" id="reveal">
+  <div class="rays hidden" id="rays"></div>
+  <div class="prize-card" id="prize-card">
+    <div class="label" id="p-label"></div>
+    <div class="prize-icon" id="p-icon"></div>
+    <div class="prize-name" id="p-name"></div>
+    <button class="spin-btn" id="p-close">好耶！</button>
+  </div>
+</div>
+
+<!-- 密碼 -->
+<div class="panel hidden" id="pin-panel">
+  <div class="pinbox">
+    <h3 style="margin:0">老師設定</h3>
+    <input type="password" id="pin-input" inputmode="numeric" maxlength="8" placeholder="密碼">
+    <div class="row" style="justify-content:center">
+      <button class="btn ghost" id="pin-cancel">取消</button>
+      <button class="btn" id="pin-ok">進入</button>
+    </div>
+    <p class="muted" id="pin-tip"></p>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="panel hidden" id="settings">
+  <div class="sheet">
+    <header>
+      <h2>🎛 扭蛋機設定</h2>
+      <button class="btn" id="s-close">完成 ✓</button>
+    </header>
+    <div class="tabs">
+      <button class="btn small on" data-tab="tab-prizes">🎁 獎品</button>
+      <button class="btn small" data-tab="tab-log">📜 紀錄</button>
+      <button class="btn small" data-tab="tab-look">🎨 外觀與其他</button>
+    </div>
+    <div class="body">
+      <section id="tab-prizes">
+        <p class="muted">點左邊方塊可以輸入表情符號，或按「📷」上傳圖片。數量空白＝無限；機率比重越大越容易抽到。</p>
+        <div id="prize-list"></div>
+        <div class="row">
+          <button class="btn" id="add-prize">＋ 新增獎品</button>
+          <span class="muted" id="pool-info"></span>
+        </div>
+        <div style="background:#fff8e1;border-radius:16px;padding:12px 14px;margin-top:8px">
+          <b>🌟 怎麼把大獎送給指定的同學？</b>
+          <div class="muted" style="margin-top:4px">在同學點「轉一下」之前，輕點畫面<b>右下角淡淡的 ♡</b>，♡ 會變成實心 ♥（很不明顯，同學不會注意）。下一次轉出來就是大獎，轉完 ♥ 會自動變回 ♡。再點一次 ♥ 可以取消。用鍵盤時也可以按 G。</div>
+        </div>
+      </section>
+      <section id="tab-log" class="hidden">
+        <div class="row"><span id="log-sum" class="muted"></span><button class="btn small ghost" id="log-clear">清除紀錄</button><button class="btn small ghost" id="stock-reset">把數量恢復成原本設定</button></div>
+        <div id="log"></div>
+      </section>
+      <section id="tab-look" class="hidden">
+        <div class="row">扭蛋機名稱 <input type="text" id="set-title" maxlength="20" style="flex:1"></div>
+        <div class="row">機身上的字 <input type="text" id="set-label" maxlength="8" style="flex:1"></div>
+        <p><b>顏色風格</b></p>
+        <div class="themes" id="themes"></div>
+        <div class="row"><label><input type="checkbox" id="set-sound"> 音效</label></div>
+        <div class="row">設定密碼 <input type="password" id="set-pin" inputmode="numeric" maxlength="8" style="width:140px" placeholder="不改就空白"><button class="btn small" id="save-pin">更新密碼</button></div>
+        <p><b>備份</b> <span class="muted">（換平板或清除瀏覽器資料前，先匯出一份）</span></p>
+        <div class="row">
+          <button class="btn small ghost" id="export">⬇ 匯出設定檔</button>
+          <label class="btn small ghost">⬆ 匯入設定檔<input type="file" id="import" accept=".json,application/json" hidden></label>
+          <button class="btn small danger" id="factory">全部重設</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<input type="file" id="img-picker" accept="image/*" hidden>
+
+<script>
+// ================= 資料 =================
+const KEY = 'cute_gacha_v1';
+const THEMES = {
+  strawberry: { name: '草莓牛奶', bg: '#ffe3ec', bg2: '#ffc9dc', primary: '#ff5c8d', primary2: '#ff8fb1', accent: '#ffc94d', text: '#5a2a3c' },
+  mint:       { name: '薄荷蘇打', bg: '#dcfaf0', bg2: '#b9eedf', primary: '#21b58f', primary2: '#5fd3b2', accent: '#ff8fab', text: '#1f4a42' },
+  lavender:   { name: '夢幻紫',   bg: '#ece6ff', bg2: '#d9ccff', primary: '#8c6cf0', primary2: '#b39dff', accent: '#ffcf5c', text: '#3b2f66' },
+  lemon:      { name: '檸檬布丁', bg: '#fff6d6', bg2: '#ffe7a3', primary: '#f59f00', primary2: '#ffc04d', accent: '#ff7eb6', text: '#5c4310' },
+  sky:        { name: '天空藍',   bg: '#e0f2ff', bg2: '#c4e4ff', primary: '#3b8eea', primary2: '#7ab8f5', accent: '#ffb84d', text: '#1e3a5f' }
+};
+const uid = () => Math.random().toString(36).slice(2, 10);
+const DEFAULT = () => ({
+  title: '幸運扭蛋機', label: '轉轉看 ♥', theme: 'strawberry', sound: true, pin: '0000',
+  prizes: [
+    { id: uid(), icon: '🍬', img: '', name: '糖果一顆', qty: null, initQty: null, weight: 30, grand: false, onlySecret: false },
+    { id: uid(), icon: '✏️', img: '', name: '可愛鉛筆', qty: 20, initQty: 20, weight: 20, grand: false, onlySecret: false },
+    { id: uid(), icon: '📒', img: '', name: '小筆記本', qty: 10, initQty: 10, weight: 15, grand: false, onlySecret: false },
+    { id: uid(), icon: '⭐', img: '', name: '加分卡', qty: null, initQty: null, weight: 10, grand: false, onlySecret: false },
+    { id: uid(), icon: '🎟️', img: '', name: '免寫作業券', qty: 3, initQty: 3, weight: 3, grand: false, onlySecret: false },
+    { id: uid(), icon: '🧸', img: '', name: '神秘大獎', qty: 1, initQty: 1, weight: 1, grand: true, onlySecret: true }
+  ],
+  log: []
+});
+let S;
+function load() {
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch { S = null; }
+  if (!S || !Array.isArray(S.prizes)) S = DEFAULT();
+  S = { ...DEFAULT(), ...S };
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch { toast('儲存空間不足：請把獎品圖片換小一點，或清除紀錄'); }
+}
+load();
+
+// ================= 小工具 =================
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let toastT;
+function toast(m) {
+  let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = m; el.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.add('hidden'), 2600);
+}
+function confetti(n = 120, gold = false) {
+  const box = document.createElement('div'); box.className = 'confetti';
+  const colors = gold ? ['#ffd54d', '#f5b800', '#fff3c4', '#ff8fb1', '#ffffff'] : ['#ff6b9a', '#4aa8f0', '#f5b800', '#3fbf6a', '#a585f5', '#ff8a3d', '#ffffff'];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i');
+    p.style.left = Math.random() * 100 + 'vw'; p.style.background = colors[i % colors.length];
+    p.style.animationDuration = 2.2 + Math.random() * 2.8 + 's'; p.style.animationDelay = Math.random() * 1.2 + 's';
+    if (Math.random() > .5) p.style.borderRadius = '50%';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 7000);
+}
+
+// ================= 音效（不用音檔） =================
+let actx;
+function tone(freq, dur = .12, type = 'sine', vol = .15, when = 0) {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime + when, o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+  } catch {}
+}
+const sfx = {
+  crank() { for (let i = 0; i < 8; i++) tone(320 + (i % 2) * 60, .05, 'square', .06, i * .14); },
+  drop() { tone(520, .1, 'triangle', .2); tone(380, .15, 'triangle', .18, .12); },
+  open() { [660, 880, 1100].forEach((f, i) => tone(f, .18, 'sine', .16, i * .08)); },
+  grand() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .18, i * .13)); }
+};
+
+// ================= 外觀 =================
+const CAP_COLORS = ['#ff8fb1', '#7cc8ff', '#ffd25c', '#8ee3a5', '#c3a6ff', '#ffb07c', '#ff9bd2'];
+function applyLook() {
+  const t = THEMES[S.theme] || THEMES.strawberry;
+  const r = document.documentElement.style;
+  for (const k of ['bg', 'bg2', 'primary', 'primary2', 'accent', 'text']) r.setProperty('--' + k, t[k]);
+  $('#title').textContent = S.title;
+  $('#svg-label').textContent = S.label;
+  document.title = S.title;
+  drawBalls();
+}
+function drawBalls() {
+  const g = $('#dome-balls');
+  let html = '';
+  // 一顆顆扭蛋堆在玻璃罩下半部
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const rows = [[206, 8], [181, 8], [156, 7], [131, 7], [108, 5]];
+  rows.forEach(([y, n], ri) => {
+    for (let i = 0; i < n; i++) {
+      const x = 150 + (i - (n - 1) / 2) * 28 + (ri % 2 ? 14 : 0) + (rnd() - .5) * 5;
+      const yy = y + (rnd() - .5) * 5, rot = Math.floor(rnd() * 360), c = CAP_COLORS[Math.floor(rnd() * CAP_COLORS.length)];
+      html += `<g transform="translate(${x.toFixed(1)} ${yy.toFixed(1)}) rotate(${rot})">
+        <circle r="14" fill="#fff" stroke="rgba(0,0,0,.14)" stroke-width="2"/>
+        <path d="M-13 0 a13 13 0 0 1 26 0z" fill="${c}"/>
+        <line x1="-13" y1="0" x2="13" y2="0" stroke="rgba(0,0,0,.12)" stroke-width="2"/>
+        <ellipse cx="-5" cy="-7" rx="4" ry="2.6" fill="#fff" opacity=".75"/></g>`;
+    }
+  });
+  g.innerHTML = html;
+}
+
+// ================= 抽獎 =================
+let armed = false, busy = false, pending = null;
+const inStock = p => p.qty === null || p.qty === undefined || p.qty > 0;
+function pickPrize(forceGrand) {
+  if (forceGrand) {
+    const g = S.prizes.filter(p => p.grand && inStock(p));
+    if (g.length) return g[Math.floor(Math.random() * g.length)];
+  }
+  const pool = S.prizes.filter(p => inStock(p) && !(p.grand && p.onlySecret) && Number(p.weight) > 0);
+  const total = pool.reduce((a, p) => a + Number(p.weight), 0);
+  if (!total) return null;
+  let r = Math.random() * total;
+  for (const p of pool) { r -= Number(p.weight); if (r < 0) return p; }
+  return pool[pool.length - 1];
+}
+
+function setArmed(v) {
+  armed = v;
+  $('#secret').textContent = v ? '♥' : '♡';
+  $('#secret').classList.toggle('armed', v);
+}
+function trySecret() {
+  if (busy) return;
+  if (armed) { setArmed(false); return; }
+  if (!S.prizes.some(p => p.grand && inStock(p))) {
+    $('#secret').classList.remove('no'); void $('#secret').offsetWidth; $('#secret').classList.add('no');
+    return; // 沒有大獎可給（數量用完或沒設定）
+  }
+  setArmed(true);
+}
+$('#secret').addEventListener('click', trySecret);
+document.addEventListener('keydown', e => { if ((e.key === 'g' || e.key === 'G') && $('#settings').classList.contains('hidden') && document.activeElement.tagName !== 'INPUT') trySecret(); });
+
+let knobAngle = 0;
+async function spin() {
+  if (busy) return;
+  const prize = pickPrize(armed);
+  if (!prize) { toast('扭蛋賣完了！請老師補貨 🙏'); return; }
+  const wasSecret = armed && prize.grand;
+  setArmed(false);
+  busy = true;
+  pending = { prize, secret: wasSecret };
+  $('#spin').disabled = true;
+  $('#hint').textContent = '咕嚕咕嚕…';
+  knobAngle += 360;
+  $('#knob').style.transform = `rotate(${knobAngle}deg)`;
+  $('#dome-balls').classList.add('shake');
+  sfx.crank();
+  await wait(1300);
+  $('#dome-balls').classList.remove('shake');
+  const cap = $('#capsule');
+  cap.className = 'capsule';
+  cap.style.setProperty('--cap', CAP_COLORS[Math.floor(Math.random() * CAP_COLORS.length)]);
+  if (prize.grand) cap.classList.add('gold');
+  void cap.offsetWidth;
+  cap.classList.add('drop');
+  sfx.drop();
+  await wait(900);
+  cap.classList.remove('drop'); cap.classList.add('wiggle');
+  $('#hint').textContent = '👆 點扭蛋打開它！';
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function openCapsule() {
+  if (!pending) return;
+  const { prize, secret } = pending;
+  pending = null;
+  $('#capsule').className = 'capsule';
+  if (prize.qty !== null && prize.qty !== undefined) prize.qty = Math.max(0, prize.qty - 1);
+  S.log.unshift({ t: Date.now(), name: prize.name, icon: prize.img ? '🖼️' : prize.icon, grand: !!prize.grand, secret: !!secret });
+  S.log = S.log.slice(0, 500);
+  save();
+  const card = $('#prize-card');
+  card.classList.toggle('grand', !!prize.grand);
+  $('#rays').classList.toggle('hidden', !prize.grand);
+  $('#p-label').textContent = prize.grand ? '🎉 恭喜抽中大獎！🎉' : ['你抽到了 ✨', '哇！是這個 ✨', '恭喜你 ✨'][Math.floor(Math.random() * 3)];
+  $('#p-icon').innerHTML = prize.img ? `<img src="${prize.img}" alt="">` : esc(prize.icon || '🎁');
+  $('#p-name').textContent = prize.name;
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+  $('#reveal').classList.remove('hidden');
+  if (prize.grand) { sfx.grand(); confetti(220, true); setTimeout(() => confetti(160, true), 1200); }
+  else { sfx.open(); confetti(90); }
+}
+$('#capsule').addEventListener('click', openCapsule);
+$('#spin').addEventListener('click', spin);
+$('#knob').addEventListener('click', spin);
+$('#p-close').addEventListener('click', () => {
+  $('#reveal').classList.add('hidden');
+  busy = false;
+  $('#spin').disabled = false;
+  $('#hint').textContent = '';
+});
+
+// ================= 設定（密碼保護） =================
+$('#gear').addEventListener('click', () => {
+  if (busy) return;
+  $('#pin-input').value = '';
+  $('#pin-tip').textContent = S.pin === '0000' ? '預設密碼是 0000，進去後記得改掉' : '';
+  $('#pin-panel').classList.remove('hidden');
+  setTimeout(() => $('#pin-input').focus(), 50);
+});
+$('#pin-cancel').addEventListener('click', () => $('#pin-panel').classList.add('hidden'));
+function checkPin() {
+  if ($('#pin-input').value === S.pin) { $('#pin-panel').classList.add('hidden'); openSettings(); }
+  else { toast('密碼不對喔'); $('#pin-input').value = ''; }
+}
+$('#pin-ok').addEventListener('click', checkPin);
+$('#pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+
+function openSettings() {
+  $('#set-title').value = S.title; $('#set-label').value = S.label; $('#set-sound').checked = !!S.sound;
+  renderPrizes(); renderLog(); renderThemes();
+  $('#settings').classList.remove('hidden');
+}
+$('#s-close').addEventListener('click', () => {
+  S.title = $('#set-title').value.trim() || '幸運扭蛋機';
+  S.label = $('#set-label').value.trim() || '轉轉看 ♥';
+  S.sound = $('#set-sound').checked;
+  save(); applyLook();
+  $('#settings').classList.add('hidden');
+});
+$$('.tabs .btn').forEach(b => b.addEventListener('click', () => {
+  $$('.tabs .btn').forEach(x => x.classList.toggle('on', x === b));
+  $$('.sheet .body > section').forEach(s => s.classList.toggle('hidden', s.id !== b.dataset.tab));
+  if (b.dataset.tab === 'tab-log') renderLog();
+}));
+
+function renderPrizes() {
+  const pool = S.prizes.filter(p => inStock(p) && !(p.grand && p.onlySecret) && Number(p.weight) > 0);
+  const total = pool.reduce((a, p) => a + Number(p.weight), 0);
+  $('#prize-list').innerHTML = S.prizes.map((p, i) => {
+    const pct = pool.includes(p) && total ? (Number(p.weight) / total * 100).toFixed(1) + '%' : (p.grand && p.onlySecret ? '只在指定時出現' : (inStock(p) ? '0%' : '已送完'));
+    return `<div class="prow ${p.grand ? 'grand' : ''}" data-i="${i}">
+      <div>
+        <div class="icon-box">${p.img ? `<img src="${p.img}" alt="">` : `<input type="text" data-f="icon" value="${esc(p.icon)}" maxlength="4" aria-label="圖示">`}</div>
+        <button class="btn small ghost" data-img style="margin-top:4px;padding:2px 6px;width:64px">${p.img ? '移除圖' : '📷'}</button>
+      </div>
+      <div><span class="small-lbl">獎品名稱</span><input type="text" data-f="name" value="${esc(p.name)}" maxlength="20" style="width:100%"></div>
+      <div><span class="small-lbl">剩餘數量</span><input type="number" data-f="qty" value="${p.qty ?? ''}" min="0" placeholder="無限" style="width:100%"></div>
+      <div><span class="small-lbl">機率比重</span><input type="number" data-f="weight" value="${p.weight}" min="0" style="width:100%"><span class="pct">${pct}</span></div>
+      <div class="flags">
+        <label><input type="checkbox" data-f="grand" ${p.grand ? 'checked' : ''}> 🌟 大獎</label>
+        ${p.grand ? `<label><input type="checkbox" data-f="onlySecret" ${p.onlySecret ? 'checked' : ''}> 只在我指定時出現</label>` : ''}
+      </div>
+      <button class="btn small danger" data-del aria-label="刪除">✕</button>
+    </div>`;
+  }).join('');
+  const grandLeft = S.prizes.filter(p => p.grand && inStock(p)).length;
+  $('#pool-info').textContent = `共 ${S.prizes.length} 種獎品 · ${grandLeft ? '可指定的大獎：' + S.prizes.filter(p => p.grand && inStock(p)).map(p => p.name).join('、') : '⚠️ 目前沒有可指定的大獎'}`;
+  $$('#prize-list .prow').forEach(row => {
+    const p = S.prizes[row.dataset.i];
+    row.querySelectorAll('[data-f]').forEach(inp => inp.addEventListener('change', () => {
+      const f = inp.dataset.f;
+      if (f === 'grand' || f === 'onlySecret') { p[f] = inp.checked; if (f === 'grand' && inp.checked && p.onlySecret === undefined) p.onlySecret = true; }
+      else if (f === 'qty') { const v = inp.value.trim(); p.qty = v === '' ? null : Math.max(0, parseInt(v, 10) || 0); p.initQty = p.qty; }
+      else if (f === 'weight') p.weight = Math.max(0, Number(inp.value) || 0);
+      else p[f] = inp.value.trim() || (f === 'icon' ? '🎁' : '獎品');
+      save(); renderPrizes();
+    }));
+    row.querySelector('[data-del]').addEventListener('click', () => {
+      if (!confirm(`刪除「${p.name}」？`)) return;
+      S.prizes.splice(row.dataset.i, 1); save(); renderPrizes();
+    });
+    row.querySelector('[data-img]').addEventListener('click', () => {
+      if (p.img) { p.img = ''; save(); renderPrizes(); return; }
+      imgTarget = p; $('#img-picker').value = ''; $('#img-picker').click();
+    });
+  });
+}
+let imgTarget = null;
+$('#img-picker').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f || !imgTarget) return;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 320 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    imgTarget.img = c.toDataURL('image/webp', .85);
+    URL.revokeObjectURL(img.src);
+    save(); renderPrizes();
+  };
+  img.src = URL.createObjectURL(f);
+});
+$('#add-prize').addEventListener('click', () => {
+  S.prizes.push({ id: uid(), icon: '🎁', img: '', name: '新獎品', qty: null, initQty: null, weight: 10, grand: false, onlySecret: false });
+  save(); renderPrizes();
+  const list = $('#prize-list'); list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+function renderLog() {
+  const n = S.log.length, g = S.log.filter(x => x.grand).length;
+  $('#log-sum').textContent = `共轉了 ${n} 次，大獎 ${g} 次`;
+  $('#log').innerHTML = n ? '<table><tr><th>時間</th><th>獎品</th><th></th></tr>' + S.log.map(x => `
+    <tr><td class="muted">${new Date(x.t).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+    <td>${esc(x.icon)} ${esc(x.name)}</td><td>${x.grand ? '🌟 大獎' : ''}${x.secret ? '（指定）' : ''}</td></tr>`).join('') + '</table>' : '<p class="muted">還沒有人轉過</p>';
+}
+$('#log-clear').addEventListener('click', () => { if (confirm('清除所有抽獎紀錄？')) { S.log = []; save(); renderLog(); } });
+$('#stock-reset').addEventListener('click', () => {
+  if (!confirm('把每個獎品的剩餘數量恢復成最後一次設定的數量？')) return;
+  S.prizes.forEach(p => { p.qty = p.initQty ?? null; }); save(); renderPrizes(); toast('數量已恢復');
+});
+
+function renderThemes() {
+  $('#themes').innerHTML = Object.entries(THEMES).map(([k, t]) => `<button data-th="${k}" class="${S.theme === k ? 'on' : ''}" style="background:${t.primary}">${t.name}</button>`).join('');
+  $$('#themes button').forEach(b => b.addEventListener('click', () => { S.theme = b.dataset.th; save(); applyLook(); renderThemes(); }));
+}
+$('#save-pin').addEventListener('click', () => {
+  const v = $('#set-pin').value.trim();
+  if (!/^\d{4,8}$/.test(v)) return toast('密碼請用 4～8 位數字');
+  S.pin = v; save(); $('#set-pin').value = ''; toast('密碼已更新 🔒');
+});
+$('#export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '扭蛋機設定.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$('#import').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.prizes)) throw 0;
+    S = { ...DEFAULT(), ...d }; save(); applyLook(); openSettings(); toast('設定已匯入');
+  } catch { toast('這不是扭蛋機的設定檔'); }
+});
+$('#factory').addEventListener('click', () => {
+  if (!confirm('確定要全部重設嗎？獎品、紀錄和密碼都會回到預設值。')) return;
+  S = DEFAULT(); save(); applyLook(); openSettings(); toast('已重設，密碼是 0000');
+});
+
+// 防止平板雙擊縮放與長按選單
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });
+
+applyLook();
+</script>
+</body>
+</html>

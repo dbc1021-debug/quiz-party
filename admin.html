@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>後台管理 · 搶答派對</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .wrap { max-width: 1300px; margin: 0 auto; padding: 20px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  header h1 { color: var(--primary); margin: 0; text-shadow: 0 3px 0 #fff; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .tabs button { background: rgba(255,255,255,.7); color: var(--text); }
+  .tabs button.on { background: var(--primary); color: #fff; }
+  .grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filters > * { flex: 1 1 140px; min-width: 0; }
+  .qlist { max-height: 62vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .qi { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: #fff8fb; border: 2px solid transparent; cursor: pointer; }
+  .qi:hover { border-color: var(--bg2); }
+  .qi.on { border-color: var(--primary); background: #fff0f5; }
+  .qi .t { flex: 1; min-width: 0; }
+  .qi .t .txt { font-weight: 700; }
+  .qi .t .sub { font-size: .82rem; opacity: .7; margin-top: 2px; }
+  .qi input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--primary); margin-top: 2px; }
+  .sel { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: #fff8fb; border-radius: 12px; }
+  .sel .n { width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: .85rem; flex: 0 0 auto; }
+  .sel .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sel input[type=number] { width: 74px; padding: 6px 8px; }
+  .icon { background: none; border: 0; cursor: pointer; font-size: 1rem; padding: 4px; color: var(--text); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  .muted { opacity: .7; font-size: .9rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 2px dashed rgba(0,0,0,.06); vertical-align: top; }
+  th { font-size: .85rem; opacity: .7; }
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .tcard { border-radius: 18px; overflow: hidden; background: #fff; box-shadow: var(--shadow); }
+  .tprev { height: 120px; display: flex; align-items: center; justify-content: center; gap: 8px; background-size: cover; background-position: center; position: relative; }
+  .tprev img { width: 64px; height: 64px; object-fit: contain; }
+  .tprev .sw { width: 26px; height: 26px; border-radius: 8px; border: 3px solid #fff; }
+  .tcard .tb { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+  .colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .colors label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; font-weight: 700; }
+  .colors input[type=color] { width: 100%; height: 40px; border: 0; border-radius: 10px; padding: 0; cursor: pointer; background: none; }
+  .err { color: #e03131; font-size: .9rem; }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; }
+  #login { max-width: 380px; margin: 14vh auto; text-align: center; display: flex; flex-direction: column; gap: 12px; }
+  details.preview summary { cursor: pointer; }
+  .history-top { font-size: .9rem; }
+  @media (max-width: 960px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="card hidden" id="login">
+  <img class="mascot" src="img/mascot.svg" alt="" style="margin:0 auto">
+  <h2>後台登入</h2>
+  <button class="btn" id="btn-login">用 Google 帳號登入</button>
+  <p class="err" id="login-msg"></p>
+  <button class="btn small ghost hidden" id="btn-logout-2">換一個帳號</button>
+  <p class="muted">只有 firebase-config.js 裡設定的帳號可以進入</p>
+</div>
+
+<div class="wrap hidden" id="app">
+  <header>
+    <img src="img/mascot.svg" alt="" style="width:54px">
+    <h1>搶答派對 · 後台</h1>
+    <div class="tabs">
+      <button class="btn small on" data-tab="t-game">🎮 建立遊戲</button>
+      <button class="btn small" data-tab="t-bank">📚 題庫與匯入</button>
+      <button class="btn small" data-tab="t-theme">🎨 風格</button>
+      <button class="btn small" data-tab="t-history">🏆 歷史紀錄</button>
+      <button class="btn small ghost" id="btn-logout" title="登出">登出</button>
+    </div>
+    <span class="muted" id="who" style="width:100%;text-align:right"></span>
+  </header>
+
+  <!-- 建立遊戲 -->
+  <section id="t-game">
+    <div class="grid2">
+      <div class="card">
+        <h3>① 從題庫選題 <span class="muted" id="q-total"></span></h3>
+        <div class="filters">
+          <select id="f-cat"><option value="">全部分類</option></select>
+          <select id="f-imp"><option value="">全部匯入批次</option></select>
+          <select id="f-type">
+            <option value="">全部題型</option>
+            <option value="single">單選題</option><option value="multi">多選題</option>
+            <option value="literacy">素養題</option><option value="translation">翻譯題</option>
+          </select>
+          <input type="text" id="f-q" placeholder="🔍 搜尋題目">
+        </div>
+        <div class="row" style="margin-top:0">
+          <button class="btn small ghost" id="btn-add-all">把列出的題目全部加入</button>
+          <span class="legend"><span class="tag single">單選</span><span class="tag multi">多選</span><span class="tag literacy">素養</span><span class="tag translation">翻譯</span></span>
+        </div>
+        <div class="qlist" id="qlist"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="card">
+          <h3>② 已選題目 <span id="sel-count">0 / 50</span></h3>
+          <div class="row">
+            每題 <input type="number" id="all-secs" value="20" min="5" max="600" style="width:80px"> 秒
+            <button class="btn small" id="btn-apply-all">全部套用</button>
+            <button class="btn small ghost" id="btn-use-excel" title="使用 Excel 裡填的秒數，沒填的用左邊的秒數">用 Excel 的秒數</button>
+            <button class="btn small ghost" id="btn-clear">清空</button>
+          </div>
+          <div class="qlist" id="sel-list" style="max-height:40vh"></div>
+          <p class="muted" id="sel-time"></p>
+        </div>
+
+        <div class="card">
+          <h3>③ 遊戲設定</h3>
+          <div class="row"><input type="text" id="g-title" placeholder="遊戲名稱（例：五年級英文挑戰）" style="flex:1"></div>
+          <div class="row">風格 <select id="g-theme" style="flex:1"></select></div>
+          <div class="row"><label><input type="checkbox" id="g-shuffle"> 題目隨機順序</label></div>
+          <div class="row"><label><input type="checkbox" id="g-auto" checked> ⏩ 時間到自動進入下一題（不用按按鈕）</label></div>
+          <div class="row" id="auto-opts">公布答案停留 <input type="number" id="g-reveal" value="5" min="2" max="60" style="width:72px"> 秒，排行榜停留 <input type="number" id="g-board" value="5" min="0" max="60" style="width:72px"> 秒 <span class="muted">（排行榜填 0 就不顯示）</span></div>
+          <div class="row">
+            <button class="btn big" id="btn-start">🚀 開始遊戲</button>
+            <button class="btn ghost" id="btn-save-quiz">💾 儲存成測驗組合</button>
+          </div>
+          <p class="muted">開始後會開啟「主持畫面」，請投影到大螢幕讓同學掃 QR Code。</p>
+        </div>
+
+        <div class="card">
+          <h3>📁 已儲存的測驗組合</h3>
+          <div id="quiz-list" class="muted">還沒有</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 題庫與匯入 -->
+  <section id="t-bank" class="hidden">
+    <div class="grid2">
+      <div class="card">
+        <h3>📥 用 Excel 匯入題目</h3>
+        <p class="muted">先下載範本照格式填寫。題型填「單選／多選／素養／翻譯」；翻譯題不填選項就是打字作答。</p>
+        <p><a class="btn small accent" href="template.xlsx" download="題目匯入範本.xlsx">⬇ 下載 Excel 範本</a></p>
+        <div class="row"><input type="file" id="imp-file" accept=".xlsx"></div>
+        <div class="row">
+          <input type="text" id="imp-cat" placeholder="分類（例：英文、自然、五年級）" list="cat-list" style="flex:1">
+          <datalist id="cat-list"></datalist>
+        </div>
+        <div class="row"><input type="text" id="imp-name" placeholder="這批題目的名稱（可空白，預設用檔名）" style="flex:1"></div>
+        <button class="btn" id="btn-import">匯入</button>
+        <div id="imp-result" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h3>🗂 匯入紀錄</h3>
+        <div id="imp-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 風格 -->
+  <section id="t-theme" class="hidden">
+    <div class="card" style="margin-bottom:18px">
+      <h3>🎨 所有風格</h3>
+      <div class="themes" id="theme-list"></div>
+    </div>
+    <div class="card">
+      <h3>✨ 上傳自己的風格</h3>
+      <div class="grid2">
+        <div>
+          <div class="row"><input type="text" id="th-name" placeholder="風格名稱" style="flex:1"></div>
+          <div class="colors">
+            <label>背景色 1<input type="color" id="th-bg" value="#ffe3ec"></label>
+            <label>背景色 2<input type="color" id="th-bg2" value="#ffc2d6"></label>
+            <label>主色<input type="color" id="th-primary" value="#ff5c8d"></label>
+            <label>強調色<input type="color" id="th-accent" value="#ffb84d"></label>
+            <label>文字色<input type="color" id="th-text" value="#5a2a3c"></label>
+            <label>卡片色<input type="color" id="th-card" value="#ffffff"></label>
+          </div>
+          <div class="row"><label style="flex:1">背景圖片（可不放）<br><input type="file" id="th-bgimg" accept="image/png,image/jpeg,image/gif,image/webp"></label></div>
+          <div class="row"><label style="flex:1">吉祥物圖片（可不放，建議去背 PNG）<br><input type="file" id="th-mascot" accept="image/png,image/jpeg,image/gif,image/webp"></label></div>
+          <button class="btn" id="btn-theme">上傳風格</button>
+        </div>
+        <div>
+          <p class="muted">預覽</p>
+          <div class="tcard"><div class="tprev" id="th-prev" style="height:200px"><img id="th-prev-m" src="img/mascot.svg"><span class="btn">按鈕</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 歷史 -->
+  <section id="t-history" class="hidden">
+    <div class="card">
+      <h3>🏆 歷史遊戲紀錄</h3>
+      <p><button class="btn small ghost" id="btn-cleanup">🧹 清除 1 天前的遊戲作答資料</button> <span class="muted">（排名紀錄會保留，可節省資料庫空間）</span></p>
+      <div id="history"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="js/common.js"></script>
+<script src="js/excel.js"></script>
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>

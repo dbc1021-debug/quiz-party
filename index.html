@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>搶答派對</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; min-height: 100vh; display: flex; flex-direction: column; }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; }
+  .join input { width: 100%; font-size: 1.25rem; text-align: center; padding: 14px; }
+  .join .card { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .title { font-size: 1.8rem; font-weight: 900; color: var(--primary); text-shadow: 0 3px 0 #fff; }
+  .qhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 800; }
+  .secs { font-size: 1.6rem; font-weight: 900; min-width: 2.2em; text-align: right; }
+  .secs.warn { color: #ff4d6d; animation: pulse .5s infinite; }
+  .qtext { font-size: 1.2rem; font-weight: 800; line-height: 1.6; margin: 12px 0; }
+  .opts { display: grid; gap: 12px; margin-top: 10px; }
+  .opts .opt { min-height: 64px; font-size: 1.05rem; }
+  .hint { opacity: .75; font-size: .95rem; }
+  .big-emoji { font-size: 5rem; line-height: 1; }
+  .result-score { font-size: 2.6rem; font-weight: 900; }
+  .rank-badge { font-size: 1.15rem; font-weight: 800; background: #fff; border-radius: 999px; padding: 8px 18px; box-shadow: var(--shadow); }
+  .name-chip { background: rgba(255,255,255,.85); padding: 6px 16px; border-radius: 999px; font-weight: 800; }
+  .ok-card { border: 4px solid #3fbf6a; } .bad-card { border: 4px solid #ff6b6b; }
+  details.passage summary { cursor: pointer; font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 加入 -->
+  <section id="s-join" class="center join">
+    <img class="mascot" data-mascot src="img/mascot.svg" alt="">
+    <div class="title" id="game-title">搶答派對</div>
+    <div class="card">
+      <input id="pin" type="text" inputmode="numeric" maxlength="6" placeholder="遊戲代碼（6 位數）">
+      <input id="name" type="text" maxlength="12" placeholder="輸入你的名稱" autocomplete="off">
+      <button class="btn big" id="btn-join">開始玩 ✨</button>
+    </div>
+  </section>
+
+  <!-- 等待開始 -->
+  <section id="s-lobby" class="center hidden">
+    <img class="mascot" data-mascot src="img/mascot.svg" alt="">
+    <h2>你已加入！</h2>
+    <div class="name-chip" id="me-name"></div>
+    <p class="hint">看看大螢幕上有沒有你的名字<br>等老師開始遊戲 ⏳</p>
+  </section>
+
+  <!-- 作答 -->
+  <section id="s-question" class="hidden">
+    <div class="qhead">
+      <span id="q-num"></span>
+      <span class="tag" id="q-type"></span>
+      <span class="secs" id="q-secs"></span>
+    </div>
+    <div class="timerbar" id="q-bar"><i></i></div>
+    <div class="card" style="margin-top:12px">
+      <details class="passage hidden" id="q-passage" open><summary>📖 閱讀文本</summary><div></div></details>
+      <div class="qtext" id="q-text"></div>
+      <div class="hint" id="q-hint"></div>
+    </div>
+    <div class="opts" id="q-opts"></div>
+    <div id="q-textbox" class="hidden" style="margin-top:12px;display:flex;gap:10px;flex-direction:column">
+      <input type="text" id="q-input" maxlength="200" placeholder="在這裡輸入答案" autocomplete="off" style="font-size:1.2rem;padding:14px">
+    </div>
+    <button class="btn big hidden" id="q-submit" style="width:100%;margin-top:14px">送出答案 🚀</button>
+  </section>
+
+  <!-- 已作答 -->
+  <section id="s-answered" class="center hidden">
+    <div class="big-emoji pop">🤞</div>
+    <h2>已送出！</h2>
+    <p class="hint">等其他同學作答中…</p>
+  </section>
+
+  <!-- 結果 -->
+  <section id="s-result" class="center hidden">
+    <div class="card pop" id="r-card" style="width:100%">
+      <div class="big-emoji" id="r-emoji"></div>
+      <h2 id="r-title"></h2>
+      <div class="result-score" id="r-gain"></div>
+      <p class="hint" id="r-answer"></p>
+    </div>
+    <div class="rank-badge" id="r-rank"></div>
+    <p class="hint" id="r-total"></p>
+  </section>
+
+  <!-- 最終 -->
+  <section id="s-final" class="center hidden">
+    <div class="big-emoji pop" id="f-emoji">🏆</div>
+    <h2 id="f-title"></h2>
+    <div class="card" style="width:100%">
+      <div class="result-score" id="f-score"></div>
+      <p id="f-detail" class="hint"></p>
+    </div>
+    <p class="hint">看大螢幕的頒獎台吧！</p>
+  </section>
+
+  <!-- 被移除 -->
+  <section id="s-kicked" class="center hidden">
+    <div class="big-emoji">👋</div>
+    <h2 id="k-msg"></h2>
+    <button class="btn" onclick="location.reload()">重新加入</button>
+  </section>
+</div>
+
+<script src="js/common.js"></script>
+<script type="module" src="js/player.js"></script>
+</body>
+</html>
